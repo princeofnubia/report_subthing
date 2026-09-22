@@ -1,0 +1,8 @@
+
+/* ---------- Added: hint text under section headers ---------- */
+.hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: -10px 0 18px;
+  line-height: 1.5;
+}

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Report Recipients</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="login-mark" style="margin-bottom:0; width:32px; height:32px; font-size:12px;">RR</div>
+      <div>
+        <h1>Report Recipients</h1>
+        <div class="eyebrow">Per user_id transaction reports</div>
+      </div>
+    </div>
+    <button class="btn-ghost" id="logoutBtn">Sign out</button>
+  </div>
+
+  <div class="container">
+
+    <!-- ================= EMAIL MESSAGE TEMPLATE ================= -->
+    <div class="section-head">
+      <h2>Email Message</h2>
+      <span class="count" id="templateSavedLabel"></span>
+    </div>
+
+    <form class="message-card" id="templateForm">
+      <label for="templateSubject">Subject</label>
+      <input type="text" id="templateSubject" placeholder="Your Daily Report" required />
+
+      <label for="templateBody">Body</label>
+      <textarea id="templateBody" rows="8" placeholder="Hi,&#10;&#10;Here is today's report:&#10;&#10;{{report}}&#10;&#10;Thanks." required></textarea>
+      <div class="field-hint">Use <code>{{report}}</code> anywhere in the body to insert the generated report content. This same message is used for every recipient's individual report and every observer copy.</div>
+
+      <div class="message-actions">
+        <button type="submit" class="btn-add">Save message</button>
+      </div>
+    </form>
+
+    <!-- ================= REPORT RUNS ================= -->
+    <div class="section-head">
+      <h2>Report Runs</h2>
+      <span class="count" id="reportRunLabel"></span>
+    </div>
+
+    <form class="message-card" id="reportSendForm">
+      <label for="reportDate">Send report for date</label>
+      <div class="report-send-row">
+        <input type="date" id="reportDate" required />
+        <button type="submit" class="btn-add" id="reportSendBtn">Send report</button>
+      </div>
+      <div class="field-hint">
+        Generates a report for that day for every active recipient, filtered to their own
+        user_id, and emails it to them plus every active observer. Safe to re-run for a
+        date that previously failed or partially failed.
+      </div>
+    </form>
+
+    <table id="reportRunsTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>User ID</th>
+          <th>Recipient</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th>Failed</th>
+          <th>Run at</th>
+        </tr>
+      </thead>
+      <tbody id="reportRunsBody"></tbody>
+    </table>
+    <div class="empty-state" id="reportRunsEmpty" style="display:none;">
+      No report runs yet.
+    </div>
+    <div class="pagination-row" id="reportRunsPagination">
+      <button class="btn-ghost" id="reportRunsPrevBtn">&larr; Newer</button>
+      <span class="count" id="reportRunsRangeLabel"></span>
+      <button class="btn-ghost" id="reportRunsNextBtn">Older &rarr;</button>
+    </div>
+
+    <!-- ================= RECIPIENTS ================= -->
+    <div class="section-head" style="margin-top:48px;">
+      <h2>Recipients</h2>
+      <span class="count" id="countLabel">0 total</span>
+    </div>
+    <p class="hint">Each recipient is tied to a specific user_id and only receives a report of that user_id's own transactions. The same email can be added multiple times with different user_ids.</p>
+
+    <form class="add-row" id="addForm">
+      <input type="email" id="newEmail" placeholder="name@company.com" required />
+      <input type="number" id="newUserId" placeholder="user_id" min="1" step="1" required style="max-width:140px;" />
+      <button type="submit" class="btn-add">Add recipient</button>
+    </form>
+
+    <table id="recipientsTable">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>User ID</th>
+          <th>Status</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      No recipients yet. Add one above to start sending per-user reports.
+    </div>
+
+    <!-- ================= OBSERVER EMAILS ================= -->
+    <div class="section-head" style="margin-top:48px;">
+      <h2>Observer Emails</h2>
+      <span class="count" id="observerCountLabel">0 total</span>
+    </div>
+    <p class="hint">These addresses receive a separate copy of every report sent to every recipient above — they don't see who else got it.</p>
+
+    <form class="add-row" id="addObserverForm">
+      <input type="email" id="newObserverEmail" placeholder="observer@company.com" required />
+      <button type="submit" class="btn-add">Add observer</button>
+    </form>
+
+    <table id="observersTable">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Status</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="observerTableBody"></tbody>
+    </table>
+    <div class="empty-state" id="observerEmptyState" style="display:none;">
+      No observer emails yet.
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

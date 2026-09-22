@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign in — Report Recipients</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-mark">RR</div>
+      <h1>Report Recipients</h1>
+      <p class="sub">Sign in to manage who receives the daily report.</p>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="loginForm">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username" required />
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+        <button type="submit" class="btn-primary" id="submitBtn">Sign in</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const errorMsg = document.getElementById('errorMsg');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMsg.classList.remove('show');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Signing in…';
+
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          window.location.href = '/';
+        } else {
+          errorMsg.textContent = data.error || 'Sign in failed';
+          errorMsg.classList.add('show');
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Something went wrong. Try again.';
+        errorMsg.classList.add('show');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign in';
+      }
+    });
+  </script>
+</body>
+</html>
