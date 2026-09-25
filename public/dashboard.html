@@ -28,7 +28,8 @@
 
     <form class="message-card" id="templateForm">
       <label for="templateSubject">Subject</label>
-      <input type="text" id="templateSubject" placeholder="Your Daily Report" required />
+      <input type="text" id="templateSubject" placeholder="Request for Payment for Successful Transactions for {{date}}" required />
+      <div class="field-hint">Use <code>{{date}}</code> in the subject to insert the report date — the previous day's date when sent automatically, or the date you pick when sending manually.</div>
 
       <label for="templateBody">Body</label>
       <textarea id="templateBody" rows="8" placeholder="Hi,&#10;&#10;Here is today's report:&#10;&#10;{{report}}&#10;&#10;Thanks." required></textarea>
