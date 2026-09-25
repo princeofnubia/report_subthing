@@ -2,7 +2,7 @@
 // Admin UI backend: session-based login + CRUD API for:
 //   - recipients (subscribers): now email + user_id pairs — each recipient
 //     gets their own report filtered to their own user_id
-//   - observer emails: get a separate copy of every per-user_id email sent
+//   - observer emails: CC'd on every per-user_id email sent
 //   - message template (subject/body sent by the cron job)
 //   - report send / history (manual re-run from the dashboard)
 //
@@ -233,7 +233,7 @@ app.delete('/api/recipients/:id', async (req, res) => {
 });
 
 // ======================================================================
-// OBSERVER EMAILS — receive a separate copy of every per-user_id email
+// OBSERVER EMAILS — CC'd on every per-user_id email
 // ======================================================================
 
 app.get('/api/observers', async (req, res) => {

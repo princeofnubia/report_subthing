@@ -54,7 +54,7 @@
       </div>
       <div class="field-hint">
         Generates a report for that day for every active recipient, filtered to their own
-        user_id, and emails it to them plus every active observer. Safe to re-run for a
+        user_id, and emails it to them with every active observer CC'd. Safe to re-run for a
         date that previously failed or partially failed.
       </div>
     </form>
@@ -111,16 +111,16 @@
       No recipients yet. Add one above to start sending per-user reports.
     </div>
 
-    <!-- ================= OBSERVER EMAILS ================= -->
+    <!-- ================= OBSERVER EMAILS (CC) ================= -->
     <div class="section-head" style="margin-top:48px;">
-      <h2>Observer Emails</h2>
+      <h2>Observer Emails (CC)</h2>
       <span class="count" id="observerCountLabel">0 total</span>
     </div>
-    <p class="hint">These addresses receive a separate copy of every report sent to every recipient above — they don't see who else got it.</p>
+    <p class="hint">These addresses are CC'd on every report sent to every recipient above — they're visible to the recipient and to each other in the CC field.</p>
 
     <form class="add-row" id="addObserverForm">
       <input type="email" id="newObserverEmail" placeholder="observer@company.com" required />
-      <button type="submit" class="btn-add">Add observer</button>
+      <button type="submit" class="btn-add">Add CC email</button>
     </form>
 
     <table id="observersTable">
