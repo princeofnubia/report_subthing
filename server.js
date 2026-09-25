@@ -366,27 +366,47 @@ app.put('/api/message-template', async (req, res) => {
 });
 
 // ---------- REPORT SEND / HISTORY (manual re-run from the dashboard) ----------
-const { sendReportForDate, getReportRuns, isValidDate } = require('./lib/report-job');
+const {
+  sendReportForDate,
+  sendReportForOneRecipient,
+  getReportRuns,
+  isValidDate,
+} = require('./lib/report-job');
 
-// Trigger a generate + send for a specific date. This does NOT wait for
-// the job to finish — large reports (hundreds of thousands of rows) can
-// take minutes, well past any reverse proxy's default timeout (nginx's
-// default is ~60s), which would otherwise return a 504 to the browser
-// even though the job kept running fine in the background. Instead, this
-// responds immediately once the job is kicked off, and progress/results
-// are visible in the Report Runs table (GET /api/reports) as each
-// recipient's send completes.
+// Trigger a generate + send for a specific date, either for every active
+// recipient (default) or, when recipientId is given, just that one
+// recipient — e.g. to reissue a single expired download link without
+// re-emailing everyone else for that date. This does NOT wait for the job
+// to finish — large reports (hundreds of thousands of rows) can take
+// minutes, well past any reverse proxy's default timeout (nginx's default
+// is ~60s), which would otherwise return a 504 to the browser even though
+// the job kept running fine in the background. Instead, this responds
+// immediately once the job is kicked off, and progress/results are
+// visible in the Report Runs table (GET /api/reports) as each recipient's
+// send completes.
 app.post('/api/reports/send', async (req, res) => {
-  const { date } = req.body;
+  const { date, recipientId } = req.body;
 
   if (!date || !isValidDate(date)) {
     return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' });
   }
 
+  let job;
+  if (recipientId !== undefined && recipientId !== null && recipientId !== '') {
+    const id = Number(recipientId);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ error: 'Invalid recipientId' });
+    }
+    job = sendReportForOneRecipient(date, id);
+  } else {
+    job = sendReportForDate(date);
+  }
+
   // Fire and forget — errors are already logged per-recipient inside
-  // sendReportForDate via report_runs. Catch anything that escapes that
-  // (e.g. a missing message template) so it doesn't crash the process.
-  sendReportForDate(date).catch((err) => {
+  // sendReportForDate/sendReportForOneRecipient via report_runs. Catch
+  // anything that escapes that (e.g. a missing message template or an
+  // inactive/unknown recipientId) so it doesn't crash the process.
+  job.catch((err) => {
     console.error(`Report send for ${date} failed before completing:`, err.message);
   });
 

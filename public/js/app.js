@@ -14,6 +14,7 @@ const templateSavedLabel = document.getElementById('templateSavedLabel');
 
 const reportSendForm = document.getElementById('reportSendForm');
 const reportDateInput = document.getElementById('reportDate');
+const reportRecipientSelect = document.getElementById('reportRecipient');
 const reportSendBtn = document.getElementById('reportSendBtn');
 const reportRunsBody = document.getElementById('reportRunsBody');
 const reportRunsEmpty = document.getElementById('reportRunsEmpty');
@@ -74,8 +75,24 @@ async function loadRecipients() {
   }
 }
 
+function renderReportRecipientOptions() {
+  const previousValue = reportRecipientSelect.value;
+  const activeRecipients = recipients.filter((r) => r.active);
+
+  reportRecipientSelect.innerHTML =
+    '<option value="">All active recipients</option>' +
+    activeRecipients
+      .map((r) => `<option value="${r.id}">${escapeHtml(r.email)} (user_id ${r.user_id})</option>`)
+      .join('');
+
+  if (activeRecipients.some((r) => String(r.id) === previousValue)) {
+    reportRecipientSelect.value = previousValue;
+  }
+}
+
 function renderRecipients() {
   countLabel.textContent = `${recipients.length} total`;
+  renderReportRecipientOptions();
 
   if (recipients.length === 0) {
     tableBody.innerHTML = '';
@@ -499,6 +516,8 @@ reportSendForm.addEventListener('submit', async (e) => {
   const date = reportDateInput.value;
   if (!date) return;
 
+  const recipientId = reportRecipientSelect.value;
+
   reportSendBtn.disabled = true;
   reportSendBtn.textContent = 'Starting...';
 
@@ -506,14 +525,17 @@ reportSendForm.addEventListener('submit', async (e) => {
     const res = await fetch('/api/reports/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date }),
+      body: JSON.stringify(recipientId ? { date, recipientId } : { date }),
     });
     const data = await res.json();
     if (!res.ok) {
       showToast(data.error || 'Failed to start report', true);
       return;
     }
-    showToast(`Report for ${date} started \u2014 check the table below as it completes`);
+    const target = recipientId
+      ? reportRecipientSelect.options[reportRecipientSelect.selectedIndex].textContent
+      : 'all active recipients';
+    showToast(`Report for ${date} started for ${target} \u2014 check the table below as it completes`);
     reportRunsOffset = 0;
     loadReportRuns();
     pollReportRunsForAWhile();

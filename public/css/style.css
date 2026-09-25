@@ -284,7 +284,18 @@ button {
   background: #fbfbfa;
   color: var(--ink);
 }
-.report-send-row input[type="date"]:focus {
+.report-send-row select {
+  flex: 1.5;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14.5px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: #fbfbfa;
+  color: var(--ink);
+}
+.report-send-row input[type="date"]:focus,
+.report-send-row select:focus {
   outline: none;
   border-color: var(--focus);
   box-shadow: 0 0 0 3px var(--accent-soft);
