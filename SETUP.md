@@ -87,23 +87,21 @@ is on.
 **CSV report generation**
 ```
 REPORT_DB_HOSTS=10.0.0.5,10.0.0.6,192.168.1.20:3307
-REPORT_DB_USER=your_report_db_user
-REPORT_DB_PASSWORD=your_report_db_password
 REPORT_DB_NAME=database
+REPORT_MYSQL_DEFAULTS_FILE=/root/.my.cnf.do
 REPORT_DB_TABLE=database.transactions
 REPORT_OUTPUT_DIR=/var/reports
 ```
 `REPORT_DB_HOSTS` lists every server that holds transactions. The report
 query runs against each one in the order listed and the rows are combined,
-first host first. All hosts use the same `REPORT_DB_USER`,
-`REPORT_DB_PASSWORD` and `REPORT_DB_NAME`. If any host can't be reached the
-send for that recipient fails (and is logged) rather than going out with
-partial data.
+first host first. All hosts use the credentials in
+`REPORT_MYSQL_DEFAULTS_FILE` and the same `REPORT_DB_NAME` — only the host
+and port change per server. If any host can't be reached the send for that
+recipient fails (and is logged) rather than going out with partial data.
 
-If `REPORT_DB_HOSTS` is left empty, the single server configured in
-`REPORT_MYSQL_DEFAULTS_FILE=/root/.my.cnf.do` is used instead. That file is
-the `.my.cnf`-style credentials file the
-`mysql` CLI uses to reach the transactions database. Whatever user runs
+If `REPORT_DB_HOSTS` is left empty, only the server configured in
+`REPORT_MYSQL_DEFAULTS_FILE` is used. That file is the `.my.cnf`-style
+credentials file the `mysql` CLI uses to reach the transactions database. Whatever user runs
 the app / cron job needs read access to this file — if it's root-owned at
 `/root/.my.cnf.do`, either run the process as root or adjust its
 permissions.
