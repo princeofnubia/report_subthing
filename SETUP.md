@@ -22,7 +22,7 @@ automatically every morning.
   and the dashboard's "Send report" button call this exact same code.
 - **`cron/send-daily-report.js`** — thin scheduled entry point around
   `lib/report-job.js`. Defaults to **yesterday's** date; also runnable by
-  hand for a specific date (see below).
+  hand for a specific date and/or a single recipient (see below).
 - **`server.js`** — the web app: login, recipients CRUD, message template,
   and the manual report-send/history API.
 - **`send-zoho-email.js`** — a standalone script for testing your Zoho SMTP
@@ -130,6 +130,47 @@ job, for the date you pass. Useful for confirming the whole pipeline works
 end-to-end before scheduling it. Run with no date to send for yesterday
 (what the scheduled job does).
 
+### Sending to a single recipient
+
+To send (or re-send) a report to just one recipient — e.g. to reissue an
+expired download link without re-emailing everyone else — pass
+`--recipient <id>` (the `id` column in `subscribers`) or
+`--email <address>`. The date is optional and still defaults to yesterday,
+and can go before or after the flag.
+
+```bash
+# Everyone (default)
+node cron/send-daily-report.js                 # yesterday
+node cron/send-daily-report.js 2026-10-19      # a specific date
+
+# One recipient by subscriber id
+node cron/send-daily-report.js --recipient 42
+node cron/send-daily-report.js 2026-10-19 --recipient 42
+
+# One recipient by email
+node cron/send-daily-report.js --email someone@example.com
+node cron/send-daily-report.js 2026-10-19 --email someone@example.com
+
+# Same thing through npm (note the -- before the arguments)
+npm run send-report -- 2026-10-19 --recipient 42
+npm run send-report -- 2026-10-19 --email someone@example.com
+```
+
+Notes:
+- The recipient must be active and have a `user_id` set.
+- An email subscribed under several `user_id`s gets one report per
+  `user_id`, the same as in the daily run.
+- Each send is logged to `report_runs` like any other run.
+- The script exits with an error and sends nothing if you pass both flags,
+  an unknown flag, a non-numeric id, a date not in `YYYY-MM-DD` format, or
+  an email with no active subscriber.
+
+A successful run prints something like:
+```
+[2026-10-20T07:00:01.123Z] Starting report send for 2026-10-19 to someone@example.com (2 user_ids)...
+Done. Sent: 2, Failed: 0, Total: 2
+```
+
 ## 7. Set up the daily cron job
 
 ```bash
@@ -180,4 +221,6 @@ If the run history shows a date as `failed` or `partial`:
    failed (check Zoho's rate limits / your app password hasn't expired).
 3. Fix the underlying issue, then either click "Send report" for that date
    again in the dashboard, or run `npm run send-report -- YYYY-MM-DD`. Both
-   are safe to re-run — a date can be sent as many times as needed.
+   are safe to re-run — a date can be sent as many times as needed. If
+   only one recipient failed, add `--recipient <id>` or `--email <address>`
+   to re-send just theirs (see section 6).
