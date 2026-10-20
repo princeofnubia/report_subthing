@@ -112,6 +112,7 @@ function addTotals(totals, result) {
   totals.sent += result.sent;
   totals.failed += result.failed;
   totals.total += result.total;
+  totals.errors.push(...(result.errors || []));
   return totals;
 }
 
@@ -140,7 +141,7 @@ async function run({ reportDate, recipientId, email, userId, to }) {
     console.log(
       `[${now}] Starting report send for ${reportDate} to ${to} (user_id ${userIds.join(', ')})...`
     );
-    const totals = { sent: 0, failed: 0, total: 0 };
+    const totals = { sent: 0, failed: 0, total: 0, errors: [] };
     for (const id of userIds) {
       addTotals(totals, await sendReportToAddress(reportDate, id, to));
     }
@@ -162,7 +163,7 @@ async function run({ reportDate, recipientId, email, userId, to }) {
         `(${recipients.length} user_id${recipients.length === 1 ? '' : 's'})...`
     );
 
-    const totals = { sent: 0, failed: 0, total: 0 };
+    const totals = { sent: 0, failed: 0, total: 0, errors: [] };
     for (const recipient of recipients) {
       addTotals(totals, await sendReportForOneRecipient(reportDate, recipient.id));
     }
@@ -190,6 +191,10 @@ async function main() {
     const result = await run({ reportDate, ...args });
     const csvNote = result.csvDeleted !== undefined ? `, CSV deleted: ${result.csvDeleted}` : '';
     console.log(`Done. Sent: ${result.sent}, Failed: ${result.failed}, Total: ${result.total}${csvNote}`);
+    for (const error of result.errors || []) {
+      console.error(`  Error: ${error}`);
+    }
+    if (result.failed > 0) process.exitCode = 1;
   } catch (err) {
     console.error('Report job failed:', err.message);
     process.exitCode = 1;
