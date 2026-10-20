@@ -171,6 +171,34 @@ A successful run prints something like:
 Done. Sent: 2, Failed: 0, Total: 2
 ```
 
+### Sending a report to any address
+
+To send a report to an address that isn't a subscriber (e.g. an
+accountant), add `--to <address>`. A report is always one `user_id`'s
+data, so you also say whose report it is, using one of these:
+
+- `--user-id <n>`: that `user_id` directly
+- `--recipient <id>`: the `user_id` of that subscriber
+- `--email <address>`: the `user_id`(s) of that subscriber email, one
+  report each
+
+```bash
+node cron/send-daily-report.js 2026-10-19 --user-id 7 --to anyone@example.com
+node cron/send-daily-report.js 2026-10-19 --recipient 42 --to anyone@example.com
+node cron/send-daily-report.js --email someone@example.com --to anyone@example.com
+
+npm run send-report -- 2026-10-19 --user-id 7 --to anyone@example.com
+```
+
+Notes:
+- The subscriber whose data is used doesn't receive anything. Only the
+  `--to` address gets the email.
+- Observers are **not** copied on `--to` sends.
+- The send is logged to `report_runs` with the `--to` address as the
+  recipient.
+- `--user-id` only works together with `--to`, and `--to` needs exactly
+  one of `--user-id`, `--recipient` or `--email`.
+
 ## 7. Set up the daily cron job
 
 ```bash

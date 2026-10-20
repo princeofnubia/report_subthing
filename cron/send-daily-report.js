@@ -24,40 +24,64 @@
 //   node cron/send-daily-report.js 2026-08-14 --recipient 42
 //   node cron/send-daily-report.js --email someone@example.com
 //
+// To send a report to ANY address (it doesn't have to be a subscriber),
+// add --to <address> and say whose data to send with --user-id,
+// --recipient or --email. Observers are not copied on these sends:
+//   node cron/send-daily-report.js 2026-08-14 --user-id 7 --to anyone@example.com
+//   node cron/send-daily-report.js --recipient 42 --to anyone@example.com
+//
 // Runs daily at 7:00 AM server time — add this to your crontab (crontab -e):
 //   0 7 * * * cd /path/to/project && /usr/bin/node cron/send-daily-report.js >> /var/log/daily-report.log 2>&1
 
 const {
   sendReportForDate,
   sendReportForOneRecipient,
+  sendReportToAddress,
   getActiveRecipientsByEmail,
+  getActiveRecipientById,
   yesterday,
   isValidDate,
   pool,
 } = require('../lib/report-job');
 
-const USAGE =
-  'Usage: node cron/send-daily-report.js [YYYY-MM-DD] [--recipient <id> | --email <address>]';
+const USAGE = [
+  'Usage: node cron/send-daily-report.js [YYYY-MM-DD] [--recipient <id> | --email <address>]',
+  '       node cron/send-daily-report.js [YYYY-MM-DD] (--user-id <n> | --recipient <id> | --email <address>) --to <address>',
+].join('\n');
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const OPTIONS = ['--recipient', '--email', '--user-id', '--to'];
+
+function parsePositiveInt(value, label) {
+  const n = Number(value);
+  if (!Number.isInteger(n) || n <= 0) {
+    throw new Error(`Invalid ${label}: ${value}`);
+  }
+  return n;
+}
+
+function parseEmail(value, flag) {
+  const email = value.trim();
+  if (!EMAIL_PATTERN.test(email)) {
+    throw new Error(`Invalid email address for ${flag}: ${value}`);
+  }
+  return email;
+}
 
 function parseArgs(argv) {
-  const args = { date: null, recipientId: null, email: null };
+  const args = { date: null, recipientId: null, email: null, userId: null, to: null };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === '--recipient' || arg === '--email') {
+    if (OPTIONS.includes(arg)) {
       const value = argv[++i];
       if (!value || value.startsWith('--')) {
         throw new Error(`${arg} requires a value`);
       }
-      if (arg === '--recipient') {
-        const id = Number(value);
-        if (!Number.isInteger(id) || id <= 0) {
-          throw new Error(`Invalid recipient id: ${value}`);
-        }
-        args.recipientId = id;
-      } else {
-        args.email = value.trim();
-      }
+      if (arg === '--recipient') args.recipientId = parsePositiveInt(value, 'recipient id');
+      else if (arg === '--user-id') args.userId = parsePositiveInt(value, 'user id');
+      else if (arg === '--email') args.email = parseEmail(value, arg);
+      else args.to = parseEmail(value, arg);
     } else if (arg.startsWith('--')) {
       throw new Error(`Unknown option: ${arg}`);
     } else if (args.date) {
@@ -70,16 +94,61 @@ function parseArgs(argv) {
     }
   }
 
-  if (args.recipientId && args.email) {
-    throw new Error('Use either --recipient or --email, not both');
+  const selectors = [args.recipientId, args.email, args.userId].filter((v) => v !== null);
+  if (selectors.length > 1) {
+    throw new Error('Use only one of --recipient, --email or --user-id');
+  }
+  if (args.userId !== null && !args.to) {
+    throw new Error('--user-id needs --to <address> (there is no subscriber to send it to)');
+  }
+  if (args.to && selectors.length === 0) {
+    throw new Error('--to needs --user-id, --recipient or --email to say whose report to send');
   }
 
   return args;
 }
 
-async function run({ reportDate, recipientId, email }) {
+function addTotals(totals, result) {
+  totals.sent += result.sent;
+  totals.failed += result.failed;
+  totals.total += result.total;
+  return totals;
+}
+
+// Which user_id(s) the --to send should cover.
+async function resolveUserIds({ userId, recipientId, email }) {
+  if (userId) return [userId];
+
   if (recipientId) {
-    console.log(`[${new Date().toISOString()}] Starting report send for ${reportDate} to recipient id ${recipientId}...`);
+    const recipient = await getActiveRecipientById(recipientId);
+    if (!recipient) throw new Error('Recipient not found or is not active');
+    return [recipient.user_id];
+  }
+
+  const recipients = await getActiveRecipientsByEmail(email);
+  if (recipients.length === 0) {
+    throw new Error(`No active recipient found with email ${email}`);
+  }
+  return recipients.map((r) => r.user_id);
+}
+
+async function run({ reportDate, recipientId, email, userId, to }) {
+  const now = new Date().toISOString();
+
+  if (to) {
+    const userIds = await resolveUserIds({ userId, recipientId, email });
+    console.log(
+      `[${now}] Starting report send for ${reportDate} to ${to} (user_id ${userIds.join(', ')})...`
+    );
+    const totals = { sent: 0, failed: 0, total: 0 };
+    for (const id of userIds) {
+      addTotals(totals, await sendReportToAddress(reportDate, id, to));
+    }
+    return totals;
+  }
+
+  if (recipientId) {
+    console.log(`[${now}] Starting report send for ${reportDate} to recipient id ${recipientId}...`);
     return sendReportForOneRecipient(reportDate, recipientId);
   }
 
@@ -89,21 +158,18 @@ async function run({ reportDate, recipientId, email }) {
       throw new Error(`No active recipient found with email ${email}`);
     }
     console.log(
-      `[${new Date().toISOString()}] Starting report send for ${reportDate} to ${email} ` +
+      `[${now}] Starting report send for ${reportDate} to ${email} ` +
         `(${recipients.length} user_id${recipients.length === 1 ? '' : 's'})...`
     );
 
     const totals = { sent: 0, failed: 0, total: 0 };
     for (const recipient of recipients) {
-      const result = await sendReportForOneRecipient(reportDate, recipient.id);
-      totals.sent += result.sent;
-      totals.failed += result.failed;
-      totals.total += result.total;
+      addTotals(totals, await sendReportForOneRecipient(reportDate, recipient.id));
     }
     return totals;
   }
 
-  console.log(`[${new Date().toISOString()}] Starting report send for ${reportDate}...`);
+  console.log(`[${now}] Starting report send for ${reportDate}...`);
   return sendReportForDate(reportDate);
 }
 
@@ -121,7 +187,7 @@ async function main() {
   const reportDate = args.date || yesterday();
 
   try {
-    const result = await run({ reportDate, recipientId: args.recipientId, email: args.email });
+    const result = await run({ reportDate, ...args });
     const csvNote = result.csvDeleted !== undefined ? `, CSV deleted: ${result.csvDeleted}` : '';
     console.log(`Done. Sent: ${result.sent}, Failed: ${result.failed}, Total: ${result.total}${csvNote}`);
   } catch (err) {
