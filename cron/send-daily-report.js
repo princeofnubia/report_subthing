@@ -174,6 +174,19 @@ async function run({ reportDate, recipientId, email, userId, to }) {
   return sendReportForDate(reportDate);
 }
 
+// mysql2 connection failures (e.g. ECONNREFUSED) arrive as an
+// AggregateError with an empty message — the detail is in .code and
+// .errors, so surface those instead of printing a blank line.
+function describeError(err) {
+  const parts = [];
+  if (err.message) parts.push(err.message);
+  if (err.code) parts.push(`(${err.code})`);
+  for (const inner of err.errors || []) {
+    parts.push(`\n  - ${inner.message || inner.code || inner}`);
+  }
+  return parts.length > 0 ? parts.join(' ') : String(err.stack || err);
+}
+
 async function main() {
   let args;
   try {
@@ -196,7 +209,7 @@ async function main() {
     }
     if (result.failed > 0) process.exitCode = 1;
   } catch (err) {
-    console.error('Report job failed:', err.message);
+    console.error('Report job failed:', describeError(err));
     process.exitCode = 1;
   } finally {
     await pool.end();
