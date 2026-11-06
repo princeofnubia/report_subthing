@@ -45,6 +45,19 @@ This creates `subscribers`, `message_templates`, and `report_runs` in your
 app's database (the one the dashboard reads/writes — separate from the
 transactions database the report query reads from).
 
+For the **Transactions** page (`/transactions`), also run:
+
+```bash
+mysql -u your_db_user -p your_database < migration-transaction-stats.sql
+```
+
+This creates `transaction_daily_stats`, a local copy of per-product daily
+totals. Querying a date on the Transactions page pulls that day from the
+transactions database (through the same `mysql` CLI and
+`REPORT_MYSQL_DEFAULTS_FILE` as the report job) and saves it here. Range
+reports and Excel downloads are built only from this table, so a day must
+have been queried at least once to be included.
+
 ## 3. Configure environment variables
 
 ```bash

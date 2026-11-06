@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transactions</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="login-mark" style="margin-bottom:0; width:32px; height:32px; font-size:12px;">RR</div>
+      <div>
+        <h1>Transactions</h1>
+        <div class="eyebrow">Daily stats by network</div>
+      </div>
+      <nav class="topnav">
+        <a href="/">Recipients</a>
+        <a href="/transactions" class="active">Transactions</a>
+      </nav>
+    </div>
+    <button class="btn-ghost" id="logoutBtn">Sign out</button>
+  </div>
+
+  <div class="container">
+
+    <!-- ================= ONE DAY ================= -->
+    <div class="section-head">
+      <h2>Daily Stats</h2>
+      <span class="count" id="dayStatusLabel"></span>
+    </div>
+
+    <form class="message-card" id="dayForm">
+      <label for="dayDate">Date and network</label>
+      <div class="report-send-row">
+        <input type="date" id="dayDate" required />
+        <select id="dayNetwork">
+          <option value="">All networks</option>
+          <option value="MTN">MTN</option>
+          <option value="GLO">GLO</option>
+          <option value="AIRTEL">Airtel</option>
+          <option value="9MOBILE">9mobile</option>
+          <option value="OTHER">Other</option>
+        </select>
+        <button type="submit" class="btn-add" id="dayFetchBtn">Query</button>
+      </div>
+      <div class="field-hint">
+        Query pulls that day's transactions from the transactions database and saves the
+        per-product totals here, replacing any earlier copy of that day. The network comes
+        from the product name (e.g. "MTN 1GB"). A transaction counts as successful when its
+        app response contains "successful", the same rule as the emailed report.
+      </div>
+    </form>
+
+    <div class="stat-tiles" id="dayTiles" style="display:none;">
+      <div class="stat-tile"><div class="stat-label">Transactions</div><div class="stat-value" id="tileTotal">0</div></div>
+      <div class="stat-tile"><div class="stat-label">Successful</div><div class="stat-value" id="tileSuccess">0</div></div>
+      <div class="stat-tile"><div class="stat-label">Amount</div><div class="stat-value" id="tileAmount">0</div></div>
+      <div class="stat-tile"><div class="stat-label">Data (GB)</div><div class="stat-value" id="tileGb">0</div></div>
+    </div>
+
+    <table id="dayTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Network</th>
+          <th class="num">Total</th>
+          <th class="num">Successful</th>
+          <th class="num">Amount</th>
+          <th class="num">GB</th>
+        </tr>
+      </thead>
+      <tbody id="dayBody"></tbody>
+    </table>
+    <div class="empty-state" id="dayEmpty" style="display:none;"></div>
+
+    <!-- ================= RANGE REPORT ================= -->
+    <div class="section-head" style="margin-top:48px;">
+      <h2>Range Report</h2>
+      <span class="count" id="rangeStatusLabel"></span>
+    </div>
+
+    <form class="message-card" id="rangeForm">
+      <label for="rangeFrom">From, to and network</label>
+      <div class="report-send-row">
+        <input type="date" id="rangeFrom" required />
+        <input type="date" id="rangeTo" required />
+        <select id="rangeNetwork">
+          <option value="">All networks</option>
+          <option value="MTN">MTN</option>
+          <option value="GLO">GLO</option>
+          <option value="AIRTEL">Airtel</option>
+          <option value="9MOBILE">9mobile</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="message-actions">
+        <button type="submit" class="btn-ghost" id="rangePreviewBtn">Preview</button>
+        <button type="button" class="btn-add" id="rangeDownloadBtn">Download Excel</button>
+      </div>
+      <div class="field-hint">
+        Built from the stats saved on this page only. Days in the range that haven't been
+        queried yet are listed and left out of the totals. Up to 366 days.
+      </div>
+    </form>
+
+    <div class="warn-box" id="rangeMissing" style="display:none;"></div>
+
+    <table id="rangeTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="num">Total</th>
+          <th class="num">Successful</th>
+          <th class="num">Amount</th>
+          <th class="num">GB</th>
+        </tr>
+      </thead>
+      <tbody id="rangeBody"></tbody>
+      <tfoot id="rangeFoot"></tfoot>
+    </table>
+    <div class="empty-state" id="rangeEmpty" style="display:none;">
+      Nothing saved for this range yet. Query the days above first.
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/transactions.js"></script>
+</body>
+</html>

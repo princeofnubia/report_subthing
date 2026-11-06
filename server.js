@@ -428,6 +428,87 @@ app.get('/api/reports', async (req, res) => {
   }
 });
 
+// ---------- TRANSACTIONS (daily per-product stats, cached locally) ----------
+const txnStats = require('./lib/transaction-stats');
+
+app.get('/transactions', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'transactions.html'));
+});
+
+// Query one day from the transactions DB and save it to the local
+// transaction_daily_stats table (replaces that day's earlier copy), then
+// return the stored stats for the chosen network.
+app.post('/api/transactions/fetch', async (req, res) => {
+  const { date, network } = req.body;
+  if (!date || !isValidDate(date)) {
+    return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' });
+  }
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) {
+    return res.status(400).json({ error: 'Unknown network' });
+  }
+  try {
+    await txnStats.fetchAndStoreDay(date);
+    res.json(await txnStats.getDayStats(date, net));
+  } catch (err) {
+    console.error(`Transaction fetch for ${date} failed:`, err);
+    res.status(500).json({ error: err.message || 'Failed to fetch transactions' });
+  }
+});
+
+// Read a stored day without touching the transactions DB.
+app.get('/api/transactions/day', async (req, res) => {
+  const { date, network } = req.query;
+  if (!date || !isValidDate(date)) {
+    return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' });
+  }
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) {
+    return res.status(400).json({ error: 'Unknown network' });
+  }
+  try {
+    res.json(await txnStats.getDayStats(date, net));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read stored stats' });
+  }
+});
+
+// Summary of stored stats for a date range (preview before download).
+app.get('/api/transactions/range', async (req, res) => {
+  const { from, to, network } = req.query;
+  const rangeError = txnStats.validateRange(from, to);
+  if (rangeError) return res.status(400).json({ error: rangeError });
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) return res.status(400).json({ error: 'Unknown network' });
+  try {
+    res.json(await txnStats.getRangeStats(from, to, net));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to read stored stats' });
+  }
+});
+
+// Excel download of stored stats for a date range, with a grand total.
+app.get('/api/transactions/range/download', async (req, res) => {
+  const { from, to, network } = req.query;
+  const rangeError = txnStats.validateRange(from, to);
+  if (rangeError) return res.status(400).json({ error: rangeError });
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) return res.status(400).json({ error: 'Unknown network' });
+  try {
+    const range = await txnStats.getRangeStats(from, to, net);
+    const buffer = await txnStats.buildRangeWorkbook(range);
+    const fileName = `transactions_${net || 'ALL'}_${from}_to_${to}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to build report' });
+  }
+});
+
 // ---------- REPORT DOWNLOAD (public, token-based — recipients don't log in) ----------
 
 // Serves a generated report by its random token. The token itself is the
