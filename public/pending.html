@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pending Transactions</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="login-mark" style="margin-bottom:0; width:32px; height:32px; font-size:12px;">RR</div>
+      <div>
+        <h1>Pending Transactions</h1>
+        <div class="eyebrow">Per day, by network</div>
+      </div>
+      <nav class="topnav">
+        <a href="/">Recipients</a>
+        <a href="/transactions">Transactions</a>
+        <a href="/pending" class="active">Pending</a>
+      </nav>
+    </div>
+    <button class="btn-ghost" id="logoutBtn">Sign out</button>
+  </div>
+
+  <div class="container wide">
+
+    <form class="message-card" id="pendingForm">
+      <label for="pendingDate">Date and network</label>
+      <div class="report-send-row">
+        <input type="date" id="pendingDate" required />
+        <select id="pendingNetwork">
+          <option value="">All networks</option>
+          <option value="MTN">MTN</option>
+          <option value="GLO">GLO</option>
+          <option value="AIRTEL">Airtel</option>
+          <option value="9MOBILE">9mobile</option>
+          <option value="OTHER">Other</option>
+        </select>
+        <button type="submit" class="btn-add" id="loadBtn">Load</button>
+      </div>
+      <div class="field-hint">
+        Read live from the transactions database: every transaction on that day whose app
+        response contains "pending". The network comes from the product name, as on the
+        Transactions page.
+      </div>
+    </form>
+
+    <div class="warn-box" id="notConfiguredBox" style="display:none;">
+      Refunds are switched off: set <code>SUBTHINGY_API_URL</code> and <code>SUBTHINGY_API_TOKEN</code>
+      in <code>.env</code> and restart the server.
+    </div>
+
+    <div class="network-chips" id="networkChips" style="display:none;"></div>
+
+    <!-- ================= TABS ================= -->
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" data-tab="pending" role="tab">
+        Pending <span class="tab-count" id="pendingTabCount">0</span>
+      </button>
+      <button type="button" class="tab" data-tab="refunded" role="tab">
+        Refunded <span class="tab-count" id="refundedTabCount">0</span>
+      </button>
+    </div>
+
+    <!-- ================= PENDING PANEL ================= -->
+    <section class="tab-panel" id="panel-pending">
+      <div class="action-bar">
+        <div>
+          <div class="action-total" id="pendingTotal">–</div>
+          <div class="action-sub" id="pendingSub"></div>
+        </div>
+        <button type="button" class="btn-refund-all" id="refundAllBtn" disabled>Refund all</button>
+      </div>
+
+      <!-- progress for Refund all -->
+      <div class="progress-card" id="progressCard" style="display:none;">
+        <div class="progress-head">
+          <div>
+            <div class="progress-title" id="progressTitle">Refunding…</div>
+            <div class="progress-now" id="progressNow"></div>
+          </div>
+          <button type="button" class="btn-ghost" id="stopBtn">Stop</button>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-stats">
+          <span class="pstat ok"><b id="statRefunded">0</b> refunded</span>
+          <span class="pstat amt">₦<b id="statAmount">0.00</b></span>
+          <span class="pstat skip"><b id="statSkipped">0</b> skipped</span>
+          <span class="pstat fail"><b id="statFailed">0</b> failed</span>
+        </div>
+      </div>
+
+      <div class="warn-box" id="truncatedBox" style="display:none;"></div>
+
+      <div class="table-scroll">
+        <table id="pendingTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>ID / Request ID</th>
+              <th>Time</th>
+              <th>User</th>
+              <th>Product</th>
+              <th>Recipient</th>
+              <th class="num">Amount</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pendingBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="pendingEmpty" style="display:none;"></div>
+    </section>
+
+    <!-- ================= REFUNDED PANEL ================= -->
+    <section class="tab-panel" id="panel-refunded" style="display:none;">
+      <div class="action-bar">
+        <div>
+          <div class="action-total" id="refundedTotal">–</div>
+          <div class="action-sub">Refunded from this page, for transactions made on this date</div>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="refundedTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>ID / Request ID</th>
+              <th>User</th>
+              <th>Product</th>
+              <th>Recipient</th>
+              <th class="num">Amount</th>
+              <th>Was</th>
+              <th>Refund ref</th>
+              <th>Refunded</th>
+            </tr>
+          </thead>
+          <tbody id="refundedBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="refundedEmpty" style="display:none;"></div>
+    </section>
+
+  </div>
+
+  <!-- ================= CONFIRM DIALOG ================= -->
+  <div class="modal-backdrop" id="confirmModal" style="display:none;">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">Refund transactions?</h3>
+      <p id="confirmText"></p>
+      <div class="modal-amount" id="confirmAmount"></div>
+      <p class="modal-note">
+        Each one is checked again just before refunding, and anything no longer pending is skipped.
+        The amount goes back to the user's wallet on subthingy.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="confirmCancel">Cancel</button>
+        <button type="button" class="btn-refund-all" id="confirmOk">Refund</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/js/pending.js"></script>
+</body>
+</html>

@@ -509,6 +509,65 @@ app.get('/api/transactions/range/download', async (req, res) => {
   }
 });
 
+// ---------- PENDING TRANSACTIONS (live from the transactions DB) ----------
+const { getPendingForDate } = require('./lib/pending-transactions');
+
+app.get('/pending', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'pending.html'));
+});
+
+app.get('/api/pending', async (req, res) => {
+  const { date, network } = req.query;
+  if (!date || !isValidDate(date)) {
+    return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' });
+  }
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) {
+    return res.status(400).json({ error: 'Unknown network' });
+  }
+  try {
+    res.json(await getPendingForDate(date, net));
+  } catch (err) {
+    console.error(`Pending lookup for ${date} failed:`, err);
+    res.status(500).json({ error: err.message || 'Failed to load pending transactions' });
+  }
+});
+
+// Refund ONE pending transaction via subthingy. "Refund all" in the browser
+// calls this once per transaction so it can show progress as it goes.
+const refunds = require('./lib/refunds');
+
+app.post('/api/pending/refund', async (req, res) => {
+  const id = Number(req.body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.status(400).json({ error: 'A valid transaction id is required' });
+  }
+  try {
+    res.json(await refunds.refundOne(id, req.session.username));
+  } catch (err) {
+    console.error(`Refund of transaction ${id} failed:`, err);
+    res.status(500).json({ id, outcome: 'error', reason: err.message || 'Refund failed' });
+  }
+});
+
+// Transactions from a given date that were refunded from this page.
+app.get('/api/refunds', async (req, res) => {
+  const { date, network } = req.query;
+  if (!date || !isValidDate(date)) {
+    return res.status(400).json({ error: 'A valid date (YYYY-MM-DD) is required' });
+  }
+  const net = txnStats.normalizeNetwork(network);
+  if (net === undefined) {
+    return res.status(400).json({ error: 'Unknown network' });
+  }
+  try {
+    res.json({ configured: refunds.isConfigured(), ...(await refunds.getRefundedForDate(date, net)) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to load refunds' });
+  }
+});
+
 // ---------- REPORT DOWNLOAD (public, token-based — recipients don't log in) ----------
 
 // Serves a generated report by its random token. The token itself is the
